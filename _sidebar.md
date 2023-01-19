@@ -1,5 +1,5 @@
 - **README**
-  - [SDE Roadmap.](/README.md)
+  - [SDE Roadmap.](/README)
 - **Java**
   - **JavaSE**
     - [Introduction](/java/javase/day01.md)
