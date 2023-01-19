@@ -1,0 +1,8 @@
+@import url('fonts.css');
+
+:root {
+  --base-font-family: 'SourceHanSansSC', 'JetBrains Mono', -apple-system, sans-serif;
+  --base-line-height: 1.7;
+  --base-font-size: 14px;
+  --sidebar-toggle-icon-height: 8px;
+}
