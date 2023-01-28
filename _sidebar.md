@@ -12,3 +12,5 @@
 
 - **Others**
   - [Windows Solution](/collections/windows.md)
+  
+  - [PagerMaid Docker](/collections/pager.md)
