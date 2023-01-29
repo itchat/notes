@@ -274,3 +274,41 @@ systemctl status smb.service
 ```
 
 重启连接上了之后 public 就是 /inner_share 目录, smbuser 就是 /home/smbuser 目录
+
+## HTTP URL Method
+
+在协议代理中有 HTTP Method 的拦截测试，使用 python 服务器与 curl
+
+```python
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type','text/html')
+        self.end_headers()
+
+        message = "Hello, World! Here is a GET response\n"
+        self.wfile.write(bytes(message, "utf8"))
+    def do_POST(self):
+        self.send_response(200)
+        self.send_header('Content-type','text/html')
+        self.end_headers()
+
+        message = "Hello, World! Here is a POST response\n"
+        self.wfile.write(bytes(message, "utf8"))
+
+with HTTPServer(('', 80), handler) as server:
+    server.serve_forever()
+```
+
+```shell
+curl --location --request POST "http://192.168.11.183"
+```
+
+如果添加黑名单策列，返回的是
+
+```shell
+curl: (52) Empty reply from server
+```
+

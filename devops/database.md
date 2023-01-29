@@ -1,4 +1,4 @@
-# 常见数据库环境 Docker 化
+# 数据库环境搭建测试
 
 ## Docker
 
@@ -19,7 +19,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart docker
 ```
 
-## MYSQL
+## MySQL
 
 [官方镜像链接](https://hub.docker.com/_/mysql)
 
@@ -29,6 +29,48 @@ docker run -itd --name mysql_inner -p 3306:3306 -e MYSQL_ROOT_PASSWORD=123456 my
 
 安装好后默认账号为 `root` 密码为 `123456`
 
+### MySQL 生成批量 Tables 与随机数据
+
+```python
+import pymysql
+import random
+import string 
+
+# Connect to the database
+connection = pymysql.connect(
+    host='192.168.11.192',
+    port=3306,
+    user='root',
+    password='123456',
+    db='inner'
+)
+
+# Create a cursor object
+cursor = connection.cursor()
+
+# Create 1000 tables
+for i in range(1000):
+    table_name = "table" + str(i)
+    sql = "CREATE TABLE {} (id INT PRIMARY KEY, data VARCHAR(255))".format(table_name)
+    cursor.execute(sql)
+    connection.commit()
+    print("Table {} created successfully.".format(table_name))
+
+# Insert random data into each table
+for i in range(1000):
+    table_name = "table" + str(i)
+    for j in range(100):
+        data = ''.join(random.choices(string.ascii_letters + string.digits, k=255))
+        sql = "INSERT INTO {} (id, data) VALUES ({}, '{}')".format(table_name, j, data)
+        cursor.execute(sql)
+        connection.commit()
+    print("Data inserted into {} successfully.".format(table_name))
+
+# Close the cursor and connection
+cursor.close()
+connection.close()
+```
+
 ## Oracle
 
 由于 oracle 数据库从 9 版本后不再提供官方镜像并且开始收费，直接使用个人镜像
@@ -37,6 +79,8 @@ docker run -itd --name mysql_inner -p 3306:3306 -e MYSQL_ROOT_PASSWORD=123456 my
 docker search oracle11g
 docker run -h "oracle" --name "oracle_outer" -d -p 1521:1521 deepdiver/docker-oracle-xe-11g
 ```
+
+Oracle 过一周左右默认密码就会过期，用 docker exec 登录上去修改密码即可，不要用 Navicat 修改
 
 ## SQL Server
 
