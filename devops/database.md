@@ -29,6 +29,57 @@ docker run -itd --name mysql_inner -p 3306:3306 -e MYSQL_ROOT_PASSWORD=123456 my
 
 安装好后默认账号为 `root` 密码为 `123456`
 
+### 增量同步开启
+
+登录测试设备 nano 一个 my.cnf
+
+```cnf
+# For advice on how to change settings please see
+# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
+
+[mysqld]
+#
+# Remove leading # and set to the amount of RAM for the most important data
+# cache in MySQL. Start at 70% of total RAM for dedicated server, else 10%.
+# innodb_buffer_pool_size = 128M
+#
+# Remove leading # to turn on a very important data integrity option: logging
+# changes to the binary log between backups.
+# log_bin
+#
+# Remove leading # to set options mainly useful for reporting servers.
+# The server defaults are faster for transactions and fast SELECTs.
+# Adjust sizes as needed, experiment to find the optimal values.
+# join_buffer_size = 128M
+# sort_buffer_size = 2M
+# read_rnd_buffer_size = 2M
+skip-host-cache
+skip-name-resolve
+datadir=/var/lib/mysql
+socket=/var/run/mysqld/mysqld.sock
+secure-file-priv=/var/lib/mysql-files
+user=mysql
+log-bin=mysql-bin
+binlog-format=ROW
+server_id=1
+
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+
+#log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+[client]
+socket=/var/run/mysqld/mysqld.sock
+
+!includedir /etc/mysql/conf.d/
+!includedir /etc/mysql/mysql.conf.d/
+```
+
+```shell
+docker cp my.cnf mysql_inner:/etc/my.cnf
+docker restart mysql_inner
+```
+
 ### MySQL 生成批量 Tables 与随机数据
 
 ```python
@@ -82,6 +133,12 @@ docker run -h "oracle" --name "oracle_outer" -d -p 1521:1521 deepdiver/docker-or
 
 Oracle 过一周左右默认密码就会过期，用 docker exec 登录上去修改密码即可，不要用 Navicat 修改
 
+### DCN 开启增量功能
+
+```sql
+grant change notification to system
+```
+
 ## SQL Server
 
 ```shell
@@ -92,6 +149,8 @@ docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=defence*2018" \
 ```
 
 [微软官方部署教程](https://learn.microsoft.com/zh-cn/sql/linux/quickstart-install-connect-docker?view=sql-server-linux-ver15&preserve-view=true&pivots=cs1-bash)
+
+增量功能自 2008 版本开始已经内置
 
 ## PostgreSQL
 
@@ -105,6 +164,21 @@ postgre 的密码有时可能是本身的限时时效性导致的，需要进到
 su postgres
 psql
 ALTER USER postgres PASSWORD '123456';
+```
+
+### 增量功能开启
+
+通过复制流技术监听事件
+
+```shell
+docker cp postgres_outer:/var/lib/postgresql/data/pgdata/postgresql.conf .
+```
+
+首先从 docker container 中复制相关配置文件到主机，然后 nano 编辑，cltr + w 键寻找 `wal_level` 字符将其修改成 `logical` 然后传回 container 后重启
+
+```shell
+docker cp postgresql.conf postgres_outer:/var/lib/postgresql/data/pgdata/postgresql.conf
+docker restart postgres_outer
 ```
 
 ## ElasticSearch
