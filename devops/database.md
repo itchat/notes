@@ -75,6 +75,14 @@ socket=/var/run/mysqld/mysqld.sock
 !includedir /etc/mysql/mysql.conf.d/
 ```
 
+或直接在原有 cnf 目录下添加以下三行代码即可
+
+```cnf
+log-bin=mysql-bin
+binlog-format=ROW
+server_id=1
+```
+
 ```shell
 docker cp my.cnf mysql_inner:/etc/my.cnf
 docker restart mysql_inner
@@ -131,13 +139,15 @@ docker search oracle11g
 docker run -h "oracle" --name "oracle_outer" -d -p 1521:1521 deepdiver/docker-oracle-xe-11g
 ```
 
-Oracle 过一周左右默认密码就会过期，用 docker exec 登录上去修改密码即可，不要用 Navicat 修改
+Oracle 过一周左右默认密码就会过期，用 docker exec 登录上去修改密码即可，不要用 Navicat 修改。默认账户密码为 system 与 oracle
 
 ### DCN 开启增量功能
 
 ```sql
 grant change notification to system
 ```
+
+采用 DCN 注册订阅，监听增删改查事件得到 ROWID 根据 ROWID 执行 SQL 查询得到变化数据。因此需要在目标端配置一个 varchar 类型大小至少在 18 个字节以上的字段进行 ROW_ID 拷贝
 
 ## SQL Server
 
@@ -150,7 +160,64 @@ docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=defence*2018" \
 
 [微软官方部署教程](https://learn.microsoft.com/zh-cn/sql/linux/quickstart-install-connect-docker?view=sql-server-linux-ver15&preserve-view=true&pivots=cs1-bash)
 
-增量功能自 2008 版本开始已经内置
+### 增量同步
+
+首先开启 Server Agent 功能
+
+```shell
+docker exec -u 0 -it sqlserver_outer /bin/bash
+/opt/mssql/bin/mssql-conf set sqlagent.enabled true
+docker restart sqlserver_inner
+```
+
+针对源数据库表开启 CDC 同步功能
+
+```sql
+USE test123
+GO
+EXECUTE sys.sp_cdc_enable_db;
+GO
+EXEC sys.sp_cdc_enable_table  
+@source_schema = N'dbo',  
+@source_name   = N'users',  
+@role_name     = NULL,  
+@supports_net_changes = 1  
+GO 
+```
+
+如果要关闭 CDC 
+
+```sql
+USE mydb  
+GO  
+EXEC sys.sp_cdc_disable_db  
+GO  
+EXEC sys.sp_cdc_disable_table  
+@source_schema = N'dbo',  
+@source_name   = N'MyTable',  
+@capture_instance = N'dbo_MyTable'  
+GO 
+```
+
+```sql
+-- SQL Server 表结构查看
+exec sp_help 'dbo.users'
+select is_cdc_enabled from sys.databases where name='test123'
+
+-- 创建用户名密码
+create login sqlserver with password='defence*2018'
+use test123;
+create user sqlserver for login sqlserver
+
+-- 创建自定义架构
+create schema sqltest
+grant alter on schema::sqltest to sqlserver
+exec sp_droprolemember 'db_denydatareader',sqlserver
+exec sp_droprolemember 'db_denydatawriter',sqlserver
+
+-- 数据库权限
+select name, SUSER_NAME(owner_sid) as db from master.sys.DATABASEs
+```
 
 ## PostgreSQL
 
